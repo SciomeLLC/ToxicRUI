@@ -1,0 +1,16 @@
+Package: ToxicRUI
+Title: Provides a UI for the ToxicR package
+Version: 0.0.0.9000
+Authors@R: 
+    person("Shail", "Choksi", , "software.tools@sciome.com", role = c("aut", "cre"))
+Description: Provides a UI for the ToxicR package.
+License: GPL (>= 3)
+Imports: 
+    shiny,
+    remotes,
+    ToxicR,
+    bayesplot,
+    shinycssloaders
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
