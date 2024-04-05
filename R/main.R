@@ -1,20 +1,70 @@
 library(shinycssloaders)
 # Define the options for each parameter
 modelTypes <- c(
-  "exp-aerts", "invexp-aerts", "hill-aerts", "gamma-aerts",
-  "invgamma-aerts", "lomax-aerts", "invlomax-aerts", "lognormal-aerts",
-  "logskew-aerts", "invlogskew-aerts", "logistic-aerts", "probit-aerts",
-  "gamma-efsa", "LMS"
+  "Exponential Aerts" = "exp-aerts",
+  "Inverse Exponential Aerts" = "invexp-aerts",
+  "Hill Aerts" = "hill-aerts",
+  "Gamma Aerts" = "gamma-aerts",
+  "Inverse Gamma Aerts" = "invgamma-aerts",
+  "Lomax Aerts" = "lomax-aerts",
+  "Inverse Lomax Aerts" = "invlomax-aerts",
+  "Log-Normal Aerts" = "lognormal-aerts",
+  "Log-Skew-Normal Aerts" = "logskew-aerts",
+  "Inverse Log-Skew-Normal Aerts" = "invlogskew-aerts",
+  "Logistic Aerts" = "logistic-aerts",
+  "Probit Aerts" = "probit-aerts",
+  "Gamma EFSA" = "gamma-efsa",
+  "Least Mean Squares" = "LMS"
 )
 
 fitTypes <- c("laplace", "mle", "mcmc")
 
-bmrTypes <- c("sd", "rel", "hybrid", "abs")
+bmrTypes <- c(
+  "Standard Deviation" = "sd",
+  "Relative" = "rel",
+  "Hybrid" = "hybrid",
+  "Absolute" = "abs"
+)
 
-distributions <- c("normal", "normal-ncv", "lognormal")
+distributions <- c(
+  "Normal" = "normal",
+  "Normal with normalized coefficient of variation" = "normal-ncv",
+  "Lognormal" = "lognormal"
+)
 
-outcomeTypes <- c("continuous", "dichotomous")
+outcomeTypes <- c(
+  "Continuous" = "continuous",
+  "Dichotomous" = "dichotomous"
+)
 
+averageOrFit <- c(
+  "Model Averaging" = "average",
+  "Individual Model" = "fit"
+)
+
+averagingUI <- function(id) {
+  tabPanel(
+    "Averaging Models",
+    fluidRow(
+      column(
+        6,
+        h3("Data Variables"),
+        wellPanel(
+
+        ),
+        wellPanel(
+          uiOutput(NS(id, "submitAverageResponeButton"))
+        )
+      ),
+      column(
+        6,
+        h3("Analysis"),
+        wellPanel(
+        )
+      )
+    )
+  )
+}
 #' Shiny module for model fitting - UI side
 #'
 #' @param id character, id of module
@@ -34,11 +84,15 @@ fitUI <- function(id) {
         6,
         h3("Data Variables"),
         wellPanel(
+          selectInput(NS(id, "average_or_fit"), "Modelling Type:", choices = averageOrFit),
           selectInput(NS(id, "outcome_type"), "Outcome Type:", choices = outcomeTypes),
-          selectInput(NS(id, "model_type"), "Model Type:", choices = modelTypes),
+          conditionalPanel(
+            condition = "input['fit-average_or_fit'] == 'fit'",
+            selectInput(NS(id, "model_type"), "Model Type:", choices = modelTypes),
+            selectInput(NS(id, "distribution"), "Distribution:", choices = distributions)
+          ),
           selectInput(NS(id, "fit_type"), "Fit Type:", choices = fitTypes),
-          selectInput(NS(id, "bmr_type"), "BMR Type:", choices = bmrTypes),
-          selectInput(NS(id, "distribution"), "Distribution:", choices = distributions)
+          selectInput(NS(id, "bmr_type"), "BMR Type:", choices = bmrTypes)
         ),
         wellPanel(
           uiOutput(NS(id, "submitDoseResponseButton")),
@@ -68,10 +122,13 @@ fitUI <- function(id) {
               value = 1000
             )
           ),
-          checkboxInput(
-            NS(id, "ewald"),
-            label = "perform Wald CI computation",
-            FALSE
+          conditionalPanel(
+            condition = "input['fit-average_or_fit'] == 'fit'",
+            checkboxInput(
+              NS(id, "ewald"),
+              label = "perform Wald CI computation",
+              FALSE
+            )
           )
         )
       )

@@ -97,7 +97,8 @@ serverFunction <- function(input, output, session) {
     loadedData = resultData$loadedData,
     message = resultData$message,
     selectedResponse = resultData$selectedResponse,
-    selectedResponseDosage = resultData$selectedResponseDosage
+    selectedResponseDosage = resultData$selectedResponseDosage,
+    inFile = resultData$inFile
   )
 
 
@@ -272,7 +273,8 @@ dataServer <- function(id) {
         loadedData = reactive(inputData()),
         selectedResponse = reactive(input$selectedResponse),
         selectedResponseDosage = reactive(input$selectedResponseDosage),
-        message = reactive(message)
+        message = reactive(message),
+        inFile = reactive(input$dataLoaded)
       )
     }
   )
@@ -298,89 +300,225 @@ dataServer <- function(id) {
 #' @importFrom stats na.omit
 #'
 #' @export
-fitServer <- function(id, loadedData, message, selectedResponse, selectedResponseDosage) {
+fitServer <- function(id, loadedData, message, selectedResponse, selectedResponseDosage, inFile) {
   moduleServer(
     id,
     function(input, output, session) {
       command_str_reactive <- reactiveVal("")
       fit_results_reactive <- reactiveVal(NULL)
+      average_results_reactive <- reactiveVal(NULL)
       mcmc_results_reactive <- reactiveVal(NULL)
       observeEvent(input$submitDoseResponse, {
+        modelling_type <- input$average_or_fit
         D <- loadedData()[[selectedResponseDosage()]]
         Y <- loadedData()[[selectedResponse()]]
-        model_type <- input$model_type
+        dosage_column <- selectedResponseDosage()
+        data_columns <- selectedResponse()
         fit_type <- input$fit_type
         bmr_type <- input$bmr_type
         bmr <- input$bmr
-        distribution <- input$distribution
         alpha <- input$alpha
         samples <- input$samples
         burnin <- input$burnin
-        ewald <- input$ewald
-        transform <- input$transform
         outcome_type <- input$outcome_type
         seed <- input$seed
-        fit_results <- tryCatch({
+        fileInfo <- inFile()
+        if (modelling_type == "fit") {
+          model_type <- input$model_type
+          ewald <- input$ewald
+          distribution <- input$distribution
+          # transform <- input$transform
+          fit_results <- tryCatch({
+            if (outcome_type == "continuous") {
+              single_continuous_fit(
+                D = D,
+                Y = Y,
+                model_type = model_type,
+                fit_type = fit_type,
+                BMR_TYPE = bmr_type,
+                BMR = bmr,
+                distribution = distribution,
+                alpha = alpha,
+                burnin = burnin,
+                samples = samples,
+                ewald = ewald,
+                # transform = transform,
+                seed = seed
+              )
+            } else {
+              single_dichotomous_fit(
+                D = D,
+                Y = Y,
+                model_type = model_type,
+                fit_type = fit_type,
+                BMR = bmr,
+                alpha = alpha,
+                burnin = burnin,
+                samples = samples,
+                seed = seed
+              )
+            }
+          }, error = function(e) {
+            print(e)
+            return(list(error = toString(e)))
+          })
+
           if (outcome_type == "continuous") {
-            single_continuous_fit(
-              D = D,
-              Y = Y,
-              model_type = model_type,
-              fit_type = fit_type,
-              BMR_TYPE = bmr_type,
-              BMR = bmr,
-              distribution = distribution,
-              alpha = alpha,
-              burnin = burnin,
-              samples = samples,
-              ewald = ewald,
-              transform = transform,
-              seed = seed
+            command_str <- paste0("library(ToxicR)
+library(ToxicRUI)
+fileData <- readDataBMD(
+  fileName='", fileInfo$name, "', 
+  filePath='", fileInfo$datapath, "', 
+  separator=',', 
+  decimal='.'
+)
+D <- fileData[['", dosage_column, "']]
+Y <- fileData[['", data_columns, "']]
+fitResults <- single_continuous_fit(
+  D = D, 
+  Y = Y, 
+  model_type = '", model_type, "', 
+  fit_type = '", fit_type, "', 
+  BMR_TYPE = '", bmr_type, "', 
+  BMR = ", bmr, ", 
+  distribution = '", distribution, "', 
+  alpha = ", alpha, ", 
+  burnin = ", burnin, ", 
+  samples = ", samples, ", 
+  ewald = ", ewald, ", 
+  transform = ", transform, ", 
+  seed = ", seed,
+")
+plot(fitResults)
+summary(fitResults)
+"
             )
           } else {
-            single_dichotomous_fit(
-              D = D,
-              Y = Y,
-              model_type = model_type,
-              fit_type = fit_type,
-              BMR_TYPE = bmr_type,
-              BMR = bmr,
-              distribution = distribution,
-              alpha = alpha,
-              burnin = burnin,
-              samples = samples,
-              ewald = ewald,
-              transform = transform,
-              seed = seed
+            command_str <- paste0("library(ToxicR)
+library(ToxicRUI)
+fileData <- readDataBMD(fileName='", fileInfo$name, "', filePath='", fileInfo$datapath, "', separator=',', decimal='.')
+D <- fileData[['", dosage_column, "']]
+Y <- fileData[['", data_columns, "']]
+fitResults <- single_dichotomous_fit(
+  D = D, 
+  Y = Y, 
+  model_type = '", model_type, "', 
+  fit_type = '", fit_type, "', 
+  BMR = ", bmr, ", 
+  alpha = ", alpha, ", 
+  burnin = ", burnin, ", 
+  samples = ", samples, ", 
+  transform = ", transform, ", 
+  seed = ", seed, "
+)
+plot(fitResults)
+summary(fitResults)"
             )
           }
-        }, error = function(e) {
-          print(e)
-          return(list(error = toString(e)))
-        })
-        if (outcome_type == "continuous") {
-          command_str <- paste0("single_continuous_fit(D = D, Y = Y, model_type = '", model_type, "', fit_type = '", fit_type, "', BMR_TYPE = '", bmr_type, "', BMR = ", bmr ,", distribution = '", distribution, "', alpha = ", alpha,", burnin = ", burnin,", samples = ", samples,", ewald = ", ewald,", transform = ", transform,", seed = ", seed,")"
-          )
-        } else {
-          command_str <- paste0("single_dichotomous_fit(D = D, Y = Y, model_type = '", model_type, "', fit_type = '", fit_type, "', BMR_TYPE = '", bmr_type, "', BMR = ", bmr ,", distribution = '", distribution, "', alpha = ", alpha,", burnin = ", burnin,", samples = ", samples,", ewald = ", ewald,", transform = ", transform,", seed = ", seed,")"
-          )
+
+          fit_results_reactive(fit_results)
+          if (fit_type == "mcmc") {
+            temp <- as.matrix(fit_results$mcmc_result$PARM_samples)
+
+            if (distribution == "normal-ncv") {
+              colnames(temp) <- c(letters[1:(ncol(temp)-2)], "Non-constant var", "log(sig2)")
+            } else {
+              colnames(temp) <- c(letters[1:(ncol(temp)-1)], "log(sig2)")
+            }
+            mcmc_results_reactive(temp)
+          }
+        }
+
+        if (modelling_type == "average") {
+          average_results <- tryCatch({
+            if (outcome_type == "continuous") {
+              ma_continuous_fit(
+                D = D,
+                Y = Y,
+                fit_type = fit_type,
+                BMR_TYPE = bmr_type,
+                BMR = bmr,
+                alpha = alpha,
+                burnin = burnin,
+                samples = samples,
+                seed = seed
+              )
+            } else {
+              ma_dichotomous_fit(
+                D = D,
+                Y = Y,
+                fit_type = fit_type,
+                BMR_TYPE = bmr_type,
+                BMR = bmr,
+                alpha = alpha,
+                burnin = burnin,
+                samples = samples,
+                seed = seed
+              )
+            }
+          }, error = function(e) {
+            print(e)
+            return(list(error = toString(e)))
+          })
+
+          if (outcome_type == "continuous") {
+            command_str <- paste0("library(ToxicR)
+library(ToxicRUI)
+fileData <- readDataBMD(fileName='", fileInfo$name, "', filePath='", fileInfo$datapath, "', separator=',', decimal='.')
+D <- fileData[['", dosage_column, "']]
+Y <- fileData[['", data_columns, "']]
+fitResults <- ma_continuous_fit(
+  D = D, 
+  Y = Y, 
+  fit_type = '", fit_type, "', 
+  BMR_TYPE = '", bmr_type, "', 
+  BMR = ", bmr, "',
+  alpha = ", alpha, ", 
+  burnin = ", burnin, ", 
+  samples = ", samples, ", 
+  seed = ", seed, "
+)
+plot(fitResults)
+summary(fitResults)"
+            )
+          } else {
+            command_str <- paste0("library(ToxicR)
+library(ToxicRUI)
+fileData <- readDataBMD(fileName='", fileInfo$name, "', filePath='", fileInfo$datapath, "', separator=',', decimal='.')
+D <- fileData[['", dosage_column, "']]
+Y <- fileData[['", data_columns, "']]
+fitResults <- ma_dichotomous_fit(
+  D = D, 
+  Y = Y, 
+  model_type = '", model_type, "', 
+  fit_type = '", fit_type, "', 
+  BMR_TYPE = '", bmr_type, "', 
+  BMR = ", bmr, "', 
+  alpha = ", alpha, ", 
+  burnin = ", burnin, ", 
+  samples = ", samples, ", 
+  seed = ", seed, "
+)
+plot(fitResults)
+summary(fitResults)"
+            )
+          }
+          average_results_reactive(average_results)
+          # if (fit_type == "mcmc") {
+          #   temp <- as.matrix(fit_results$mcmc_result$PARM_samples)
+          #   if (distribution == "normal=ncv") {
+          #     colnames(temp) <- c(letters[1:(ncol(temp)-2)], "Non-constant var", "log(sig2)")
+          #   } else {
+          #     colnames(temp) <- c(letters[1:(ncol(temp)-1)], "log(sig2)")
+          #   }
+          #   mcmc_results_reactive(temp)
+          # }
         }
         command_str_reactive(command_str)
-        fit_results_reactive(fit_results)
-
-        if (fit_type == "mcmc") {
-          temp <- as.matrix(fit_results$mcmc_result$PARM_samples)
-          
-          if (distribution == "normal=ncv") {
-            colnames(temp) <- c(letters[1:(ncol(temp)-2)], "Non-constant var", "log(sig2)")
-          } else {
-            colnames(temp) <- c(letters[1:(ncol(temp)-1)], "log(sig2)")
-          }
-          mcmc_results_reactive(temp)
-        }
       })
       observe({
         if (!is.null(fit_results_reactive())) {
+          updateTabsetPanel(session=session, inputId="tabs", selected = "results")
           output$plotData <- renderPlot({
             plot(fit_results_reactive())
           })
@@ -392,13 +530,22 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
             }
           })
         }
+        if (!is.null(average_results_reactive())) {
+          updateTabsetPanel(session=session, inputId="tabs", selected = "results")
+          output$plotData <- renderPlot({
+            plot(average_results_reactive())
+          })
+
+          output$results <- renderPrint({
+            summary(average_results_reactive())
+          })
+        }
         if (!is.null(command_str_reactive())) {
-          output$commandText <- renderText({paste0("ToxicR::", command_str_reactive())})
+          output$commandText <- renderText(command_str_reactive())
         }
       })
       observe({
         if (!is.null(mcmc_results_reactive())) {
-          updateTabsetPanel(session, "tabs", selected = "results")
           output$tracePlot <- renderPlot({
             bayesplot::mcmc_trace(mcmc_results_reactive())
             # ggplot(mcmc_results_reactive(), aes(x=Sample, y = Value)) + geom_line() + facet_wrap(~Parameter, scales = "free")
