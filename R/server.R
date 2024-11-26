@@ -16,7 +16,7 @@ bestChoice <- function(patterns, choices) {
   }))
 
   if (length(allCandidates) > 0) {
-    return(choices[allCandidates[1]]) 
+    return(choices[allCandidates[1]])
   } else {
     return("none")
   }
@@ -39,28 +39,27 @@ readDataBMD <- function(fileName, filePath, separator, decimal) {
     last = nchar(fileName)
   )
 
-  tryCatch(
-    {
-      if (extension == "rda") {
-        load(file.path(filePath))
-        tmpData <- get(substring(fileName, first = 1, last = (nchar(fileName) - 4)))$data
-      } else {
-        tit <- scan(filePath, "", nlines = 1, sep = separator)
-        if (sum(sapply(tit, function(x) nchar(x) > 0)) == 1) {
-          tmpData <- read.table(
+  tryCatch({
+    if (extension == "rda") {
+      load(file.path(filePath))
+      tmpData <- get(substring(fileName, first = 1, last = (nchar(fileName) - 4)))$data
+    } else {
+      tit <- scan(filePath, "", nlines = 1, sep = separator)
+      if (sum(sapply(tit, function(x) nchar(x) > 0)) == 1) {
+        tmpData <- read.table(
             filePath,
             skip = 4,
             sep = separator,
             dec = decimal,
             row.names = NULL
           )
-        } else {
-          tmpData <- read.table(filePath, header = T, sep = separator, dec = decimal)
-        }
+      } else {
+        tmpData <- read.table(filePath, header = T, sep = separator, dec = decimal)
       }
+    }
 
-      return(tmpData)
-    },
+    return(tmpData)
+  },
     error = function(err) {
       return(err)
     }
@@ -80,10 +79,12 @@ readDataBMD <- function(fileName, filePath, separator, decimal) {
 #' @import ToxicR
 #' @import bayesplot
 #' @importFrom rmarkdown render
+#' @importFrom shinyjs enable disable
+#' @importFrom shinytoastr toastr_error
 #'
 #' @export
 serverFunction <- function(input, output, session) {
-  
+
   # For debugging
   observeEvent(input$debug_console, browser())
   output$debug_print <- renderPrint(resultData)
@@ -101,6 +102,25 @@ serverFunction <- function(input, output, session) {
     inFile = resultData$inFile
   )
 
+  # Observer for "Run dose-response analysis" button click
+  observeEvent(input$`fit-submitDoseResponse`, {
+    # Switch to the "Results" tab immediately
+    updateTabsetPanel(session, "tabs", selected = "Results")
+    # disable("fit-submitDoseResponse")
+  })
+
+  #   # Observer for analysis completion
+  # observeEvent(fitResults$fit_results(), {
+  #   # Re-enable the button after analysis completes
+  #   enable("fit-submitDoseResponse")
+
+  #   # Check if there's an error in the fit results
+  #   if (!is.null(fitResults$fit_results()$error)) {
+  #     # Show an error notification using shinytoastr
+  #     shinytoastr::toastr_error("Error in model fitting. Please check your inputs.", "Error")
+  #     updateTabsetPanel(session, "tabs", selected = "Fit Models")
+  #   }
+  # })
 
   # Refresh all input fields upon loading (new) data
   observeEvent(input$dataLoaded, {
@@ -185,21 +205,20 @@ dataServer <- function(id) {
 
 
       ## 3. Select response(s)
-      observe(
-        {
-          req(initialData())
+      observe({
+        req(initialData())
 
-          updateSelectInput(
+        updateSelectInput(
             session = session, inputId = "selectedResponse",
             choices = c("", colnames(initialData())),
             selected = "" # bestChoice(patterns = c("response"), choices = colnames(initialData()))
           )
-          updateSelectInput(
+        updateSelectInput(
             session = session, inputId = "selectedResponseDosage",
             choices = c("", colnames(initialData())),
             selected = "" # bestChoice(patterns = c("response"), choices = colnames(initialData()))
           )
-        },
+      },
         priority = 1000
       )
 
@@ -234,7 +253,7 @@ dataServer <- function(id) {
         req(dataLoadedOut())
         nMissing <- nrow(subsetData()) - nrow(dataLoadedOut())
         tagList(
-          # Note if there were incomplete cases removed from the data
+        # Note if there were incomplete cases removed from the data
           if (nMissing > 0) {
             tags$em(paste("There were", nMissing, "records excluded from the data due to missing values."))
           },
@@ -249,12 +268,12 @@ dataServer <- function(id) {
         if (is.null(selectedRows)) {
           inputData <- inputData(dataLoadedOut())
         } else {
-          inputData <- inputData(dataLoadedOut()[-selectedRows, ])
+          inputData <- inputData(dataLoadedOut()[-selectedRows,])
 
           message$outlier <- paste0(
             "Warning: You selected", length(selectedRows),
             "rows to be excluded from the analysis.\n",
-            knitr::kable(dataLoadedOut()[selectedRows, ], digits = 3)
+            knitr::kable(dataLoadedOut()[selectedRows,], digits = 3)
           )
         }
       })
@@ -304,11 +323,11 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
   moduleServer(
     id,
     function(input, output, session) {
-      command_str_reactive <- reactiveVal("")
-      fit_results_reactive <- reactiveVal(NULL)
-      average_results_reactive <- reactiveVal(NULL)
-      mcmc_results_reactive <- reactiveVal(NULL)
-      observeEvent(input$submitDoseResponse, {
+      analysis_result <- eventReactive(input$submitDoseResponse, {
+        mcmc_results <- NULL
+        fit_results <- NULL
+        average_results <- NULL
+        command_str <- NULL
         modelling_type <- input$average_or_fit
         D <- loadedData()[[selectedResponseDosage()]]
         Y <- loadedData()[[selectedResponse()]]
@@ -342,7 +361,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                 burnin = burnin,
                 samples = samples,
                 ewald = ewald,
-                # transform = transform,
+              # transform = transform,
                 seed = seed
               )
             } else {
@@ -386,9 +405,8 @@ fitResults <- single_continuous_fit(
   burnin = ", burnin, ", 
   samples = ", samples, ", 
   ewald = ", ewald, ", 
-  transform = ", transform, ", 
   seed = ", seed,
-")
+            ")
 plot(fitResults)
 summary(fitResults)
 "
@@ -408,7 +426,6 @@ fitResults <- single_dichotomous_fit(
   alpha = ", alpha, ", 
   burnin = ", burnin, ", 
   samples = ", samples, ", 
-  transform = ", transform, ", 
   seed = ", seed, "
 )
 plot(fitResults)
@@ -416,16 +433,15 @@ summary(fitResults)"
             )
           }
 
-          fit_results_reactive(fit_results)
           if (fit_type == "mcmc") {
             temp <- as.matrix(fit_results$mcmc_result$PARM_samples)
 
             if (distribution == "normal-ncv") {
-              colnames(temp) <- c(letters[1:(ncol(temp)-2)], "Non-constant var", "log(sig2)")
+              colnames(temp) <- c(letters[1:(ncol(temp) - 2)], "Non-constant var", "log(sig2)")
             } else {
-              colnames(temp) <- c(letters[1:(ncol(temp)-1)], "log(sig2)")
+              colnames(temp) <- c(letters[1:(ncol(temp) - 1)], "log(sig2)")
             }
-            mcmc_results_reactive(temp)
+            mcmc_results <- temp
           }
         }
 
@@ -503,53 +519,58 @@ plot(fitResults)
 summary(fitResults)"
             )
           }
-          average_results_reactive(average_results)
-          # if (fit_type == "mcmc") {
-          #   temp <- as.matrix(fit_results$mcmc_result$PARM_samples)
-          #   if (distribution == "normal=ncv") {
-          #     colnames(temp) <- c(letters[1:(ncol(temp)-2)], "Non-constant var", "log(sig2)")
-          #   } else {
-          #     colnames(temp) <- c(letters[1:(ncol(temp)-1)], "log(sig2)")
-          #   }
-          #   mcmc_results_reactive(temp)
-          # }
         }
-        command_str_reactive(command_str)
+        list(
+          command_str = paste0("ToxicR::", command_str),
+          fit_results = fit_results,
+          mcmc_results = mcmc_results,
+          average_result = average_results
+        )
       })
-      observe({
-        if (!is.null(fit_results_reactive())) {
-          updateTabsetPanel(session=session, inputId="tabs", selected = "results")
-          output$plotData <- renderPlot({
-            plot(fit_results_reactive())
-          })
-          output$results <- renderPrint({
-            if (is.list(fit_results_reactive()) && !is.null(fit_results_reactive()$error)) {
-              print(fit_results_reactive()$error)
-            } else {
-              summary(fit_results_reactive())
-            }
-          })
-        }
-        if (!is.null(average_results_reactive())) {
-          updateTabsetPanel(session=session, inputId="tabs", selected = "results")
-          output$plotData <- renderPlot({
-            plot(average_results_reactive())
-          })
 
-          output$results <- renderPrint({
-            summary(average_results_reactive())
-          })
-        }
-        if (!is.null(command_str_reactive())) {
-          output$commandText <- renderText(command_str_reactive())
+      output$commandText <- renderText({
+        req(analysis_result())
+        analysis_result()$command_str
+      })
+
+      output$plotData <- renderPlot({
+        req(analysis_result())
+        fit_results <- analysis_result()$fit_results
+        if (!is.null(fit_results)) {
+          plot(fit_results)
+        } else {
+          plot(analysis_result()$average_result)
         }
       })
-      observe({
-        if (!is.null(mcmc_results_reactive())) {
-          output$tracePlot <- renderPlot({
-            bayesplot::mcmc_trace(mcmc_results_reactive())
-            # ggplot(mcmc_results_reactive(), aes(x=Sample, y = Value)) + geom_line() + facet_wrap(~Parameter, scales = "free")
-          })
+
+      output$results <- renderPrint({
+        req(analysis_result())
+        fit_results <- analysis_result()$fit_results
+
+        if (!is.null(fit_results)) {
+          if (is.list(fit_results) && !is.null(fit_results$error)) {
+            print(fit_results$error)
+          } else {
+            print(summary(fit_results)) # Ensure summary is printed
+          }
+        } else {
+          average_results <- analysis_result()$average_result # Corrected from average_results
+          if (is.list(average_results) && !is.null(average_results$error)) {
+            print(average_results$error)
+          } else {
+            print(summary(average_results)) # Ensure summary is printed
+          }
+        }
+      })
+      output$tracePlot <- renderPlot({
+        req(analysis_result())
+        mcmc_results <- analysis_result()$mcmc_results
+        if (!is.null(mcmc_results)) {
+          bayesplot::mcmc_trace(mcmc_results)
+        } else {
+          # Optionally, display a message if no MCMC results are available
+          plot.new()
+          text(0.5, 0.5, "No MCMC results to display", col = "blue", cex = 1.2)
         }
       })
       output$submitDoseResponseButton <- renderUI({

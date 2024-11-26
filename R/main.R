@@ -226,7 +226,7 @@ resultsUI <- function(id) {
       column(
         6,
         plotOutput(NS("fit", "plotData")) %>% withSpinner(),
-        plotOutput(NS("fit", "tracePlot"))
+        plotOutput(NS("fit", "tracePlot")) %>% withSpinner()
       )
     )
   )
