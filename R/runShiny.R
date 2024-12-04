@@ -13,8 +13,10 @@ runShiny <- function(installDependencies = FALSE, ...) {
     ## (a) CRAN packages
     update(
       remotes::dev_package_deps(pkgdir = system.file("app",
-        package = "ToxicRUI"
-      ), dependencies = "Suggests")
+          package = "ToxicRUI"
+        ),
+        dependencies = "Suggests"
+      )
     )
     ## (b) OA packages
     utils::install.packages("oaStyle", repos = "https://repos.openanalytics.eu/repo/public")
