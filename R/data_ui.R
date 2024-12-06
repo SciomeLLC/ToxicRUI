@@ -49,7 +49,7 @@ dataUI <- function(id) {
           fluidRow(
             column(
               6,
-              radioButtons(NS(id, "sep"), "Data separator",
+              radioButtons(ns("sep"), "Data separator",
                 c(
                   "Tab (.txt file)" = "\t",
                   "Space (.txt file)" = " ",
@@ -61,35 +61,40 @@ dataUI <- function(id) {
             ),
             column(
               6,
-              radioButtons(NS(id, "dec"), "Decimal separator", c("Point" = ".", "Comma" = ","))
+              radioButtons(ns("dec"), "Decimal separator", c("Point" = ".", "Comma" = ","))
             )
           )
         ),
         fileInput(
-          NS(id, "dataLoaded"),
+          ns("dataLoaded"),
           label = "",
           accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".rda")
         ),
         selectInput(
-          NS(id, "selectedResponseDosage"),
+          ns("dataType"),
+          label = "Type of data",
+          choices = outcomeTypes,
+          multiple = FALSE
+        ),
+        selectInput(
+          ns("selectedResponseDosage"),
           label = "Select the dosage column",
           choices = NULL,
           multiple = FALSE
         ),
-        selectInput(
-          NS(id, "selectedResponse"),
-          label = "Which response(s) do you want to consider?",
-          choices = NULL,
-          multiple = TRUE
+        fluidRow(
+          uiOutput(ns("dichotomous_inputs")),
+          uiOutput(ns("continuous_summary_inputs")),
+          uiOutput(ns("continuous_full_inputs"))
         ),
         actionButton(ns("proceedToFit"), "Proceed to Fit Models", class = "btn-primary", disabled = TRUE)
       ),
       column(
         6,
         wellPanel(
-          DT::DTOutput(NS(id, "dataOverview")),
-          uiOutput(NS(id, "dataMessage")),
-          uiOutput(NS(id, "dataOutlier"))
+          DT::DTOutput(ns("dataOverview")),
+          uiOutput(ns("dataMessage")),
+          uiOutput(ns("dataOutlier"))
         )
       )
     )

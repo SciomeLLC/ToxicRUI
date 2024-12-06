@@ -22,7 +22,7 @@
 #' @importFrom shinycssloaders withSpinner
 #'
 #' @export
-fitServer <- function(id, loadedData, message, selectedResponse, selectedResponseDosage, inFile) {
+fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std_dev, outcome, selectedResponseDosage, inFile) {
   require(shinyBS)
   require(shinytoastr)
   moduleServer(
@@ -33,7 +33,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
       # Enable/Disable the submit button based on selection
       proceedToResultsClicked <- reactive(TRUE) %>% bindEvent(input$submitDoseResponse)
       analysis_result <- eventReactive(input$submitDoseResponse, {
-        shinyjs::disable("submitDoseResponse")
+        updateActionButton(session = session, "submitDoseResponse", disabled = TRUE)
         command_str_list <- list()
         fit_results_list <- list()
         mcmc_results_list <- list()
@@ -41,12 +41,12 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
         withProgress(message = "Running dose-response analysis...", value = 0, {
           num_resp <- length(selectedResponse())
           for (i in seq_along(selectedResponse())) {
-            resp <- selectedResponse()[i]
+            resp <- selectedResponse()[[i]]
+            toastr_info(resp)
             incProgress(1 / num_resp, message = paste0("Running dose-response analysis for ", resp))
             dosage <- selectedResponseDosage()
             D <- loadedData()[[dosage]]
             Y <- loadedData()[[resp]]
-
             modelling_type <- input$average_or_fit
             fit_type <- input$fit_type
             bmr_type <- input$bmr_type
@@ -54,9 +54,19 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
             alpha <- input$alpha
             samples <- input$samples
             burnin <- input$burnin
-            outcome_type <- input$outcome_type
+            outcome_type <- outcome()
             seed <- input$seed
             fileInfo <- inFile()
+
+            if (outcome() == "continuous-summary") {
+              outcome_type <- "continuous"
+              M2 <- matrix(0, nrow = length(D), ncol = 3)
+              colnames(M2) <- c("Resp", "N", "StDev")
+              M2[, 1] <- loadedData()[[resp]]
+              M2[, 2] <- loadedData()[[sample_col()]]
+              M2[, 3] <- loadedData()[[std_dev()]]
+              Y <- M2
+            }
 
             fit_res <- NULL
             mcmc_res <- NULL
@@ -69,7 +79,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
               distribution <- input$distribution
 
               fit_res <- tryCatch({
-                if (outcome_type == "continuous") {
+                if (outcome() == "continuous" || outcome() == "continuous-summary") {
                   single_continuous_fit(
                     D = D,
                     Y = Y,
@@ -88,6 +98,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   single_dichotomous_fit(
                     D = D,
                     Y = Y,
+                    N = loadedData()[[sample_col()]],
                     model_type = model_type,
                     fit_type = fit_type,
                     BMR = bmr,
@@ -110,7 +121,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   "library(ToxicRUI)\n",
                   "fileData <- readDataBMD(\n",
                   "  fileName='", fileInfo$name, "', \n",
-                  "  filePath='", fileInfo$datapath, "', \n",
+                  "  filePath='", fileInfo$name, "', \n",
                   "  separator=',', \n",
                   "  decimal='.'\n",
                   ")\n",
@@ -139,7 +150,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   "library(ToxicRUI)\n",
                   "fileData <- readDataBMD(\n",
                   "  fileName='", fileInfo$name, "', \n",
-                  "  filePath='", fileInfo$datapath, "', \n",
+                  "  filePath='", fileInfo$name, "', \n",
                   "  separator=',', \n",
                   "  decimal='.'\n",
                   ")\n",
@@ -178,7 +189,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
 
             if (modelling_type == "average") {
               average_res <- tryCatch({
-                if (outcome_type == "continuous") {
+                if (outcome() == "continuous" || outcome() == "continuous-summary") {
                   ma_continuous_fit(
                     D = D,
                     Y = Y,
@@ -194,6 +205,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   ma_dichotomous_fit(
                     D = D,
                     Y = Y,
+                    N = loadedData()[[sample_col()]],
                     fit_type = fit_type,
                     BMR_TYPE = bmr_type,
                     BMR = bmr,
@@ -216,7 +228,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   "library(ToxicRUI)\n",
                   "fileData <- readDataBMD(\n",
                   "  fileName='", fileInfo$name, "', \n",
-                  "  filePath='", fileInfo$datapath, "', \n",
+                  "  filePath='", fileInfo$name, "', \n",
                   "  separator=',', \n",
                   "  decimal='.'\n",
                   ")\n",
@@ -242,7 +254,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
                   "library(ToxicRUI)\n",
                   "fileData <- readDataBMD(\n",
                   "  fileName='", fileInfo$name, "', \n",
-                  "  filePath='", fileInfo$datapath, "', \n",
+                  "  filePath='", fileInfo$name, "', \n",
                   "  separator=',', \n",
                   "  decimal='.'\n",
                   ")\n",
@@ -271,9 +283,9 @@ fitServer <- function(id, loadedData, message, selectedResponse, selectedRespons
             mcmc_results_list[[resp]] <- mcmc_res
             average_results_list[[resp]] <- average_res
           }
+          updateActionButton(session = session, "submitDoseResponse", disabled = FALSE)
         })
 
-        shinyjs::enable("submitDoseResponse")
         list(
           command_str = command_str_list,
           fit_results = fit_results_list,

@@ -6,11 +6,13 @@
 #' @return reactive object, loaded data
 #'
 #' @import shiny
-#' @importFrom shinyjs toggle hidden
+#' @import shinujs
+#' @importFrom shinyjs toggle hidden enable disable toggleState
 #' @importFrom shinytoastr toastr_error toastr_warning toastr_success
 #' @importFrom utils read.csv
 #' @export
 dataServer <- function(id) {
+  ns <- NS(id)
   moduleServer(
     id,
     function(input, output, session) {
@@ -23,7 +25,10 @@ dataServer <- function(id) {
         outlier = NULL,
         missing = NULL
       )
-
+      std_dev <- reactiveVal(NULL)
+      selectedResponse <- reactiveVal(NULL)
+      samples <- reactiveVal(NULL)
+      outcome <- reactiveVal(NULL)
       ## 1. Load Data ##
       observeEvent(input$dataLoaded, {
         inFile <- input$dataLoaded
@@ -69,12 +74,104 @@ dataServer <- function(id) {
       })
 
 
+      output$dichotomous_inputs <- renderUI({
+        req(input$dataType == "dichotomous")
+        column(
+          12,
+          selectInput(
+            inputId = ns("dichotomous_response"),
+            label = "Select Response Column:",
+            choices = colnames(initialData()), # Dynamically populate based on loaded data
+            selected = NULL
+          ),
+          selectInput(
+            inputId = ns("dichotomous_samples"),
+            label = "Select Samples Column:",
+            choices = colnames(initialData()),
+            selected = NULL
+          )
+        )
+      })
+
+      output$continuous_summary_inputs <- renderUI({
+        req(input$dataType == "continuous-summary")
+        column(
+          12,
+          selectInput(
+            inputId = ns("summary_response"),
+            label = "Select Response Column:",
+            choices = colnames(initialData()),
+            selected = NULL
+          ),
+          selectInput(
+            inputId = ns("summary_samples"),
+            label = "Select Samples Column:",
+            choices = colnames(initialData()),
+            selected = NULL
+          ),
+          selectInput(
+            inputId = ns("summary_sd"),
+            label = "Select Standard Deviation Column:",
+            choices = colnames(initialData()),
+            selected = NULL
+          )
+        )
+      })
+
+      output$continuous_full_inputs <- renderUI({
+        req(input$dataType == "continuous")
+        column(
+          6,
+          selectInput(
+            inputId = ns("continuous_response"),
+            label = "Select Response Column:",
+            choices = colnames(initialData()),
+            selected = NULL,
+            multiple = FALSE
+          )
+        )
+      })
+
+      selectedResponse <- reactive({
+        outcome <- input$dataType
+        if (outcome == "dichotomous") {
+          input$dichotomous_response
+        } else if (outcome == "continuous-summary") {
+          input$summary_response
+        } else if (outcome == "continuous") {
+          input$continuous_response
+        } else {
+          NULL
+        }
+      })
+
+      samples <- reactive({
+        outcome <- input$dataType
+        if (outcome == "dichotomous") {
+          input$dichotomous_samples
+        } else if (outcome == "continuous-summary") {
+          input$summary_samples
+        } else if (outcome == "continuous") {
+          NULL
+        } else {
+          NULL
+        }
+      })
+
+      std_dev <- reactive({
+        outcome <- input$dataType
+        if (outcome == "continuous-summary") {
+          input$summary_samples
+        } else {
+          NULL
+        }
+      })
       ## 3. Select response(s)
       observe({
         req(initialData())
 
         updateSelectInput(
-          session = session, inputId = "selectedResponse",
+          session = session, inputId = "continuous_response",
           choices = c("", colnames(initialData())),
           selected = "" # bestChoice(patterns = c("response"), choices = colnames(initialData()))
         )
@@ -122,7 +219,7 @@ dataServer <- function(id) {
             toastr_warning(paste0("There were", nMissing, "records excluded from the data due to missing values."), "Warning")
           },
           br(),
-          tags$em("You can select rows in the table that should be excluded from the analysis (outliers).")
+          toastr_info("You can select rows in the table that should be excluded from the analysis (outliers).", "Info")
         )
       })
 
@@ -141,19 +238,43 @@ dataServer <- function(id) {
           toastr_warning(message$outlier, "Warning")
         }
       })
+
       ## 6. Enable "Proceed to Fit Models" Button When All Inputs are Selected ##
       observe({
-        fileLoaded <- !is.null(input$dataLoaded) && input$dataLoaded$size > 0
-        dosageSelected <- input$selectedResponseDosage != ""
-        responsesSelected <- length(input$selectedResponse) > 0 && any(input$selectedResponse != "")
-
-        if (fileLoaded && dosageSelected && responsesSelected) {
-          shinyjs::enable("proceedToFit")
+        input$dichotomous_response
+        input$selectedResponseDosage
+        input$dichotomous_samples
+        input$summary_response
+        input$summary_samples
+        input$summary_sd
+        input$continuous_response
+        if (input$dataType == "dichotomous") {
+          fileLoaded <- !is.null(inputData())
+          dosageSelected <- !is.null(input$selectedResponseDosage) && input$selectedResponseDosage != ""
+          responsesSelected <- !is.null(input$dichotomous_response) && !is.null(input$dichotomous_samples)
+        } else if (input$dataType == "continuous-summary") {
+          fileLoaded <- !is.null(inputData())
+          dosageSelected <- !is.null(input$selectedResponseDosage) && input$selectedResponseDosage != ""
+          responsesSelected <- !is.null(input$summary_response) && !is.null(input$summary_samples) &&
+            !is.null(input$summary_sd)
+        } else if (input$dataType == "continuous") {
+          fileLoaded <- !is.null(inputData())
+          dosageSelected <- !is.null(input$selectedResponseDosage) && input$selectedResponseDosage != ""
+          responsesSelected <- !is.null(input$continuous_response) & length(input$continuous_response) > 0
         } else {
-          shinyjs::disable("proceedToFit")
+          fileLoaded <- FALSE
+          dosageSelected <- FALSE
+          responsesSelected <- FALSE
+        }
+        if (fileLoaded && dosageSelected && responsesSelected) {
+          updateActionButton(session = session, "proceedToFit", disabled = FALSE)
+        } else {
+          updateActionButton(session = session, "proceedToFit", disabled = TRUE)
         }
       })
+
       proceedToFitClicked <- reactive(TRUE) %>% bindEvent(input$proceedToFit)
+
       output$dataOutlier <- renderUI({
         req(input$dataOverview_rows_selected)
 
@@ -163,10 +284,13 @@ dataServer <- function(id) {
         )
       })
 
-      ## 6. Output of dataServer
+      ## 7. Output of dataServer
       list(
         loadedData = reactive(inputData()),
-        selectedResponse = reactive(input$selectedResponse),
+        selectedResponse = reactive(selectedResponse()),
+        samples = reactive(samples()),
+        std_dev = reactive(std_dev()),
+        outcome = reactive(input$dataType),
         selectedResponseDosage = reactive(input$selectedResponseDosage),
         message = reactive(message),
         inFile = reactive(input$dataLoaded),

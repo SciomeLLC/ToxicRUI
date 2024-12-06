@@ -32,8 +32,9 @@ distributions <- c(
 )
 
 outcomeTypes <- c(
-  "Continuous" = "continuous",
-  "Dichotomous" = "dichotomous"
+  "Continuous - Full Data" = "continuous",
+  "Dichotomous" = "dichotomous",
+  "Continuous - Summary Stats" = "continuous-summary"
 )
 
 averageOrFit <- c(

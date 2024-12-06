@@ -43,6 +43,9 @@ serverFunction <- function(input, output, session) {
     loadedData = resultData$loadedData,
     message = resultData$message,
     selectedResponse = resultData$selectedResponse,
+    sample_col = resultData$samples,
+    std_dev = resultData$std_dev,
+    outcome = resultData$outcome,
     selectedResponseDosage = resultData$selectedResponseDosage,
     inFile = resultData$inFile
   )

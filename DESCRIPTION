@@ -1,6 +1,6 @@
 Package: ToxicRUI
 Title: Provides a UI for the ToxicR package
-Version: 0.0.1.0
+Version: 0.0.2
 Authors@R: 
     person("Shail", "Choksi", , "software.tools@sciome.com", role = c("aut", "cre"))
 Description: Provides a UI for the ToxicR package.

@@ -1,5 +1,6 @@
 #' Run the shiny application
 #' @param installDependencies logical, whether to install all dependent packages or not
+#' @param port integer, the port to run the shiny app on
 #' @param ... further arguments that can be passed to \code{\link[shiny]{runApp}}
 #' @return no return value
 #' @importFrom shiny runApp
@@ -8,7 +9,7 @@
 #' @importFrom utils install.packages
 #'
 #' @export
-runShiny <- function(installDependencies = FALSE, ...) {
+runShiny <- function(installDependencies = FALSE, port = 8085, ...) {
   if (installDependencies) {
     ## (a) CRAN packages
     update(
@@ -26,6 +27,7 @@ runShiny <- function(installDependencies = FALSE, ...) {
   shinyApp(
     ui = ui,
     server = serverFunction,
-    onStart = globalFunction
+    onStart = globalFunction,
+    options = c(port = port)
   )
 }

@@ -3,22 +3,22 @@
 #' @return no return value
 #'
 #' @import shiny
+#' @import shinyjs
 #' @import shinycssloaders
 #' @importFrom shinyFeedback useShinyFeedback
 #' @importFrom shinytoastr useToastr
 #' @importFrom shinytoastr toastr_success toastr_error
-#' @importFrom shinyjs useShinyjs extendShinyjs enable disable
 #' @export
 ui <- fluidPage(
-  useShinyFeedback(),
-  useShinyjs(),
-  useToastr(),
-  extendShinyjs(
+  shinyjs::useShinyjs(),
+  shinyjs::extendShinyjs(
     text = "shinyjs.test = function() { location.reload(); }", functions = "test"),
-  extendShinyjs(
+  shinyjs::extendShinyjs(
     text = "shinyjs.pageCol = function(params){$('body').css('background', params);}", functions = "pageCol"),
-  extendShinyjs(
+  shinyjs::extendShinyjs(
     text = "shinyjs.scrollTo = function(params){$('html, body').animate({scrollTop: $(params['id']).offset().top}, 2000);}", functions = "scrollTo"),
+  useShinyFeedback(),
+  useToastr(),
   fluidRow(
     column(
       8,
