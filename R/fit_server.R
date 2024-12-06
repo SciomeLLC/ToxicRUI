@@ -42,7 +42,6 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
           num_resp <- length(selectedResponse())
           for (i in seq_along(selectedResponse())) {
             resp <- selectedResponse()[[i]]
-            toastr_info(resp)
             incProgress(1 / num_resp, message = paste0("Running dose-response analysis for ", resp))
             dosage <- selectedResponseDosage()
             D <- loadedData()[[dosage]]
@@ -75,6 +74,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
 
             if (modelling_type == "fit") {
               model_type <- input$model_type
+              model_type_dich <- input$model_type_dich
               ewald <- input$ewald
               distribution <- input$distribution
 
@@ -99,7 +99,7 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
                     D = D,
                     Y = Y,
                     N = loadedData()[[sample_col()]],
-                    model_type = model_type,
+                    model_type = model_type_dich,
                     fit_type = fit_type,
                     BMR = bmr,
                     alpha = alpha,
@@ -156,18 +156,17 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
                   ")\n",
                   "D <- fileData[['", dosage, "']]\n",
                   "Y <- fileData[['", resp, "']]\n",
+                  "N <- fileData[['", sample_col(), "']]\n",
                   "fitResults <- single_dichotomous_fit(\n",
                   "  D = D, \n",
                   "  Y = Y, \n",
-                  "  model_type = '", model_type, "', \n",
+                  "  N = N, \n",
+                  "  model_type = '", model_type_dich, "', \n",
                   "  fit_type = '", fit_type, "', \n",
-                  "  BMR_TYPE = '", bmr_type, "', \n",
                   "  BMR = ", bmr, ", \n",
-                  "  distribution = '", distribution, "', \n",
                   "  alpha = ", alpha, ", \n",
                   "  burnin = ", burnin, ", \n",
                   "  samples = ", samples, ", \n",
-                  "  ewald = ", ewald, ", \n",
                   "  seed = ", seed, "\n",
                   ")\n",
                   "plot(fitResults)\n",
@@ -183,6 +182,12 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
                 } else {
                   colnames(temp) <- c(letters[1:(ncol(temp) - 1)], "log(sig2)")
                 }
+                mcmc_res <- temp
+              }
+
+              if (fit_type == "mcmc" && outcome_type == "dichotomous") {
+                temp <- as.matrix(fit_res$mcmc_result$PARM_samples)
+                colnames(temp) <- c(letters[ 1:(ncol(temp)) ])
                 mcmc_res <- temp
               }
             }
@@ -260,11 +265,12 @@ fitServer <- function(id, loadedData, message, selectedResponse, sample_col, std
                   ")\n",
                   "D <- fileData[['", dosage, "']]\n",
                   "Y <- fileData[['", resp, "']]\n",
+                  "N <- fileData[['", sample_col(), "']]\n",
                   "fitResults <- ma_dichotomous_fit(\n",
                   "  D = D, \n",
                   "  Y = Y, \n",
+                  "  N = N, \n",
                   "  fit_type = '", fit_type, "', \n",
-                  "  BMR_TYPE = '", bmr_type, "', \n",
                   "  BMR = ", bmr, ", \n",
                   "  alpha = ", alpha, ", \n",
                   "  burnin = ", burnin, ", \n",

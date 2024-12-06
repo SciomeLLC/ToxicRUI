@@ -13,9 +13,25 @@ modelTypes <- c(
   "Logistic Aerts" = "logistic-aerts",
   "Probit Aerts" = "probit-aerts",
   "Gamma EFSA" = "gamma-efsa",
-  "Least Mean Squares" = "LMS"
+  "Least Mean Squares" = "LMS",
+  "Hill" = "hill",
+  "Exponential-3" = "exp-3",
+  "Exponential-5" = "exp-5",
+  "Power" = "power",
+  "Polynomial" = "polynomial"
 )
 
+modelTypes_dich <- c(
+  "Hill" = "hill",
+  "Gamma" = "gamma",
+  "Logistic" = "logistic",
+  "Log-Logistic" = "log-logistic",
+  "Log-Probit" = "log-probit",
+  "Multistage" = "multistage",
+  "Probit" = "probit",
+  "Q-Linear" = "qlinear",
+  "Weibull" = "weibull"
+)
 fitTypes <- c("laplace", "mle", "mcmc")
 
 bmrTypes <- c(

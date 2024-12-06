@@ -21,13 +21,23 @@ fitUI <- function(id) {
         wellPanel(
           selectInput(NS(id, "average_or_fit"), "Modelling Type:", choices = averageOrFit),
           conditionalPanel(
-            condition = "input['fit-average_or_fit'] == 'fit'",
+            condition = "input['average_or_fit'] == 'fit'",
             ns = ns,
-            selectInput(NS(id, "model_type"), "Model Type:", choices = modelTypes),
-            selectInput(NS(id, "distribution"), "Distribution:", choices = distributions)
+            conditionalPanel(
+              condition = "input['data-dataType'] == 'dichotomous'",
+              selectInput(NS(id, "model_type_dich"), "Model Type:", choices = modelTypes_dich),
+            ),
+            conditionalPanel(
+              condition = "input['data-dataType'] != 'dichotomous'",
+              selectInput(NS(id, "model_type"), "Model Type:", choices = modelTypes),
+              selectInput(NS(id, "distribution"), "Distribution:", choices = distributions),
+            )
           ),
           selectInput(NS(id, "fit_type"), "Fit Type:", choices = fitTypes),
-          selectInput(NS(id, "bmr_type"), "BMR Type:", choices = bmrTypes)
+          conditionalPanel(
+            condition = "input['data-dataType'] != 'dichotomous'",
+            selectInput(NS(id, "bmr_type"), "BMR Type:", choices = bmrTypes)
+          )
         ),
         actionButton(ns("submitDoseResponse"), "Run Dose-Response Analysis", disabled = FALSE, class = "btn-primary")
       ),
