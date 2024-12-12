@@ -12,6 +12,7 @@ Imports:
     shinyFeedback,
     shinytoastr,
     shinyjs,
+    shinyWidgets,
     bayesplot,
     ToxicR,
     dplyr,

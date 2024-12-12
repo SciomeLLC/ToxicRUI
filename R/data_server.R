@@ -122,13 +122,25 @@ dataServer <- function(id) {
         req(input$dataType == "continuous")
         column(
           6,
-          selectInput(
+          selectizeInput(
             inputId = ns("continuous_response"),
-            label = "Select Response Column:",
+            label = "Select Response Columns:",
             choices = colnames(initialData()),
             selected = NULL,
-            multiple = FALSE
+            multiple = TRUE,
+            options = list(
+              maxOptions = 1000,
+              placeholder = "Select response columns",
+              plugins = list("remove_button")
+            )
           )
+          # selectInput(
+          #   inputId = ns("continuous_response"),
+          #   label = "Select Response Column:",
+          #   choices = colnames(initialData()),
+          #   selected = NULL,
+          #   multiple = FALSE
+          # )
         )
       })
 
@@ -161,7 +173,7 @@ dataServer <- function(id) {
       std_dev <- reactive({
         outcome <- input$dataType
         if (outcome == "continuous-summary") {
-          input$summary_samples
+          input$summary_sd
         } else {
           NULL
         }
