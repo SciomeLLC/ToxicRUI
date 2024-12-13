@@ -53,7 +53,7 @@ fitUI <- function(id) {
           ),
           numericInput(NS(id, "seed"), label = "GSL seed", value = 12331),
           conditionalPanel(
-            condition = "input['fit-fit_type'] == 'mcmc'",
+            condition = "input['fit_type'] == 'mcmc'",
             ns = ns,
             numericInput(
               ns("samples"),
@@ -67,7 +67,7 @@ fitUI <- function(id) {
             )
           ),
           conditionalPanel(
-            condition = "input['fit-average_or_fit'] == 'fit'",
+            condition = "input['average_or_fit'] == 'fit'",
             checkboxInput(
               ns("ewald"),
               label = "perform Wald CI computation",
