@@ -34,126 +34,132 @@ resultsServer <- function(id, analysis_result) {
         # Iterate over each response to create its accordion panel
         if (length(avgs) == 0) {
           for (resp in names(cmds)) {
-            # Define unique output IDs for each response
-            cmd_id <- paste0("commandText_", resp)
-            res_id <- paste0("results_", resp)
-            plot_id <- paste0("plotData_", resp)
-            trace_id <- paste0("tracePlot_", resp)
+            local({ # NOTE: Required for for-loop scoping in Shiny
+              resp_local <- resp
+              # Define unique output IDs for each response
+              cmd_id <- paste0("commandText_", resp_local)
+              res_id <- paste0("results_", resp_local)
+              plot_id <- paste0("plotData_", resp_local)
+              trace_id <- paste0("tracePlot_", resp_local)
 
-            # Create output placeholders
-            output[[cmd_id]] <- renderText({
-              cmds[[resp]]
-            })
+              # Create output placeholders
+              output[[cmd_id]] <- renderText({
+                cmds[[resp_local]]
+              })
 
-            output[[res_id]] <- renderPrint({
-              fit_res <- fits[[resp]]
-              if (!is.null(fit_res)) {
-                if (is.list(fit_res) && !is.null(fit_res$error)) {
-                  cat("Error:", fit_res$error)
+              output[[res_id]] <- renderPrint({
+                fit_res <- fits[[resp_local]]
+                if (!is.null(fit_res)) {
+                  if (is.list(fit_res) && !is.null(fit_res$error)) {
+                    cat("Error:", fit_res$error)
+                  } else {
+                    summary(fit_res)
+                  }
                 } else {
-                  summary(fit_res)
+                  cat("No fit results available.")
                 }
-              } else {
-                cat("No fit results available.")
-              }
+              })
+
+              output[[plot_id]] <- renderPlot({
+                fit_res <- fits[[resp_local]]
+                if (!is.null(fit_res)) {
+                  plot(fit_res)
+                } else {
+                  plot.new()
+                  text(0.5, 0.5, "No plot available.", col = "blue")
+                }
+              })
+
+              output[[trace_id]] <- renderPlot({
+                mcmc_res <- mcmcs[[resp_local]]
+                if (!is.null(mcmc_res)) {
+                  bayesplot::mcmc_trace(mcmc_res)
+                } else {
+                  plot.new()
+                  text(0.5, 0.5, "No MCMC trace available.", col = "blue")
+                }
+              })
+
+              # Create the accordion panel for the current response
+              panels[[resp_local]] <<- bsCollapsePanel(
+                title = paste("Response:", resp_local),
+                tags$h4("Command Output:"),
+                verbatimTextOutput(ns(cmd_id)),
+
+                tags$h4("Model Summary:"),
+                verbatimTextOutput(ns(res_id)),
+
+                tags$h4("Fit Plot:"),
+                plotOutput(ns(plot_id)) %>% withSpinner(),
+
+                tags$h4("MCMC Trace Plot:"),
+                plotOutput(ns(trace_id)) %>% withSpinner(),
+                value = paste0("panel_", resp_local) # Unique value attribute
+              )
             })
-
-            output[[plot_id]] <- renderPlot({
-              fit_res <- fits[[resp]]
-              if (!is.null(fit_res)) {
-                plot(fit_res)
-              } else {
-                plot.new()
-                text(0.5, 0.5, "No plot available.", col = "blue")
-              }
-            })
-
-            output[[trace_id]] <- renderPlot({
-              mcmc_res <- mcmcs[[resp]]
-              if (!is.null(mcmc_res)) {
-                bayesplot::mcmc_trace(mcmc_res)
-              } else {
-                plot.new()
-                text(0.5, 0.5, "No MCMC trace available.", col = "blue")
-              }
-            })
-
-            # Create the accordion panel for the current response
-            panels[[resp]] <- bsCollapsePanel(
-              title = paste("Response:", resp),
-              tags$h4("Command Output:"),
-              verbatimTextOutput(ns(cmd_id)),
-
-              tags$h4("Model Summary:"),
-              verbatimTextOutput(ns(res_id)),
-
-              tags$h4("Fit Plot:"),
-              plotOutput(ns(plot_id)) %>% withSpinner(),
-
-              tags$h4("MCMC Trace Plot:"),
-              plotOutput(ns(trace_id)) %>% withSpinner(),
-              value = paste0("panel_", resp) # Unique value attribute
-            )
           }
         }
 
         # Handle Average Models if needed
         if (length(avgs) > 0) {
           for (resp in names(avgs)) {
-            # Define unique output IDs for average responses
-            avg_resp <- paste0(resp, " (Average)")
-            cmd_id <- paste0("commandText_avg_", resp)
-            res_id <- paste0("results_avg_", resp)
-            plot_id <- paste0("plotData_avg_", resp)
-            trace_id <- paste0("tracePlot_avg_", resp) # May not be applicable for averages
+            local({ # NOTE: Required for for-loop scoping in Shiny
+              resp_local <- resp
+              # Define unique output IDs for average responses
+              avg_resp <- paste0(resp_local, " (Average)")
+              cmd_id <- paste0("commandText_avg_", resp_local)
+              res_id <- paste0("results_avg_", resp_local)
+              plot_id <- paste0("plotData_avg_", resp_local)
+              trace_id <- paste0("tracePlot_avg_", resp_local) # May not be applicable for averages
 
-            # Create output placeholders
-            output[[cmd_id]] <- renderText({
-              cmds[[resp]]
-            })
+              # Create output placeholders
+              output[[cmd_id]] <- renderText({
+                cmds[[resp_local]]
+              })
 
-            output[[res_id]] <- renderPrint({
-              avg_res <- avgs[[resp]]
-              if (!is.null(avg_res)) {
-                if (is.list(avg_res) && !is.null(avg_res$error)) {
-                  cat("Error:", avg_res$error)
+              output[[res_id]] <- renderPrint({
+                avg_res <- avgs[[resp_local]]
+                if (!is.null(avg_res)) {
+                  if (is.list(avg_res) && !is.null(avg_res$error)) {
+                    cat("Error:", avg_res$error)
+                  } else {
+                    summary(avg_res)
+                  }
                 } else {
-                  summary(avg_res)
+                  cat("No average fit results available.")
                 }
-              } else {
-                cat("No average fit results available.")
-              }
-            })
+              })
 
-            output[[plot_id]] <- renderPlot({
-              avg_res <- avgs[[resp]]
-              if (!is.null(avg_res)) {
-                plot(avg_res)
-              } else {
+              output[[plot_id]] <- renderPlot({
+                avg_res <- avgs[[resp_local]]
+                if (!is.null(avg_res)) {
+                  plot(avg_res)
+                } else {
+                  plot.new()
+                  text(0.5, 0.5, "No average plot available.", col = "blue")
+                }
+              })
+
+              output[[trace_id]] <- renderPlot({
+                # Assuming average models do not produce MCMC traces
                 plot.new()
-                text(0.5, 0.5, "No average plot available.", col = "blue")
-              }
-            })
+                text(0.5, 0.5, "No MCMC trace available for average models.", col = "blue")
+              })
 
-            output[[trace_id]] <- renderPlot({
-              # Assuming average models do not produce MCMC traces
-              plot.new()
-              text(0.5, 0.5, "No MCMC trace available for average models.", col = "blue")
+              # Create the accordion panel for the average response
+              panels[[resp_local]] <<- bsCollapsePanel(
+                title = paste("Response:", avg_resp),
+                tags$h4("Command Output:"),
+                verbatimTextOutput(ns(cmd_id)),
+                tags$h4("Model Summary:"),
+                verbatimTextOutput(ns(res_id)),
+                tags$h4("Fit Plot:"),
+                plotOutput(ns(plot_id)) %>% withSpinner(),
+                tags$h4("MCMC Trace Plot:"),
+                plotOutput(ns(trace_id)) %>% withSpinner(),
+                value = paste0("panel_avg_", resp_local) # Unique value attribute
+              )
             })
-
-            # Create the accordion panel for the average response
-            panels[[resp]] <- bsCollapsePanel(
-              title = paste("Response:", avg_resp),
-              tags$h4("Command Output:"),
-              verbatimTextOutput(ns(cmd_id)),
-              tags$h4("Model Summary:"),
-              verbatimTextOutput(ns(res_id)),
-              tags$h4("Fit Plot:"),
-              plotOutput(ns(plot_id)) %>% withSpinner(),
-              tags$h4("MCMC Trace Plot:"),
-              plotOutput(ns(trace_id)) %>% withSpinner(),
-              value = paste0("panel_avg_", resp) # Unique value attribute
-            )
           }
         }
         panels
